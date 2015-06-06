@@ -11,6 +11,7 @@
 */
 
   use OSC\OM\HTML;
+  use OSC\OM\OSCOM;
 
   require('includes/application_top.php');
 
@@ -125,11 +126,11 @@
   }
 
   if ($error == true) {
-    tep_redirect(tep_href_link('advanced_search.php', tep_get_all_get_params(), 'NONSSL', true, false));
+    OSCOM::redirect('advanced_search.php', tep_get_all_get_params(), 'NONSSL', true, false);
   }
 
-  $breadcrumb->add(NAVBAR_TITLE_1, tep_href_link('advanced_search.php'));
-  $breadcrumb->add(NAVBAR_TITLE_2, tep_href_link('advanced_search_result.php', tep_get_all_get_params(), 'NONSSL', true, false));
+  $breadcrumb->add(NAVBAR_TITLE_1, OSCOM::link('advanced_search.php'));
+  $breadcrumb->add(NAVBAR_TITLE_2, OSCOM::link('advanced_search_result.php', tep_get_all_get_params(), 'NONSSL', true, false));
 
   require('includes/template_top.php');
 ?>
@@ -191,8 +192,8 @@
 
   if ( (DISPLAY_PRICE_WITH_TAX == 'true') && (tep_not_null($pfrom) || tep_not_null($pto)) ) {
     if (!isset($_SESSION['customer_country_id'])) {
-      $customer_country_id = STORE_COUNTRY;
-      $customer_zone_id = STORE_ZONE;
+      $_SESSION['customer_country_id'] = STORE_COUNTRY;
+      $_SESSION['customer_zone_id'] = STORE_ZONE;
     }
     $search_query .= ' left join :table_tax_rates tr on p.products_tax_class_id = tr.tax_class_id left join :table_zones_to_geo_zones gz on tr.tax_zone_id = gz.geo_zone_id and (gz.zone_country_id is null or gz.zone_country_id = "0" or gz.zone_country_id = :zone_country_id) and (gz.zone_id is null or gz.zone_id = "0" or gz.zone_id = :zone_id)';
   }
@@ -387,7 +388,7 @@
   <br />
 
   <div>
-    <?php echo tep_draw_button(IMAGE_BUTTON_BACK, 'glyphicon glyphicon-chevron-left', tep_href_link('advanced_search.php', tep_get_all_get_params(array('sort', 'page')), 'NONSSL', true, false)); ?>
+    <?php echo HTML::button(IMAGE_BUTTON_BACK, 'glyphicon glyphicon-chevron-left', OSCOM::link('advanced_search.php', tep_get_all_get_params(array('sort', 'page')), 'NONSSL', true, false)); ?>
   </div>
 </div>
 

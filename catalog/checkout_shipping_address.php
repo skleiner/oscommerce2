@@ -10,17 +10,20 @@
   Released under the GNU General Public License
 */
 
+  use OSC\OM\HTML;
+  use OSC\OM\OSCOM;
+
   require('includes/application_top.php');
 
 // if the customer is not logged on, redirect them to the login page
   if (!isset($_SESSION['customer_id'])) {
-    $navigation->set_snapshot();
-    tep_redirect(tep_href_link('login.php', '', 'SSL'));
+    $_SESSION['navigation']->set_snapshot();
+    OSCOM::redirect('login.php', '', 'SSL');
   }
 
 // if there is nothing in the customers cart, redirect them to the shopping cart page
   if ($_SESSION['cart']->count_contents() < 1) {
-    tep_redirect(tep_href_link('shopping_cart.php'));
+    OSCOM::redirect('shopping_cart.php');
   }
 
   // needs to be included earlier to set the success message in the messageStack
@@ -32,11 +35,9 @@
 // if the order contains only virtual products, forward the customer to the billing page as
 // a shipping address is not needed
   if ($order->content_type == 'virtual') {
-    if (!isset($_SESSION['shipping'])) tep_session_register('shipping');
-    $shipping = false;
-    if (!isset($_SESSION['sendto'])) tep_session_register('sendto');
-    $sendto = false;
-    tep_redirect(tep_href_link('checkout_payment.php', '', 'SSL'));
+    $_SESSION['shipping'] = false;
+    $_SESSION['sendto'] = false;
+    OSCOM::redirect('checkout_payment.php', '', 'SSL');
   }
 
   $error = false;
@@ -141,7 +142,7 @@
       }
 
       if ($error == false) {
-        $sql_data_array = array('customers_id' => $customer_id,
+        $sql_data_array = array('customers_id' => $_SESSION['customer_id'],
                                 'entry_firstname' => $firstname,
                                 'entry_lastname' => $lastname,
                                 'entry_street_address' => $street_address,
@@ -162,57 +163,52 @@
           }
         }
 
-        if (!isset($_SESSION['sendto'])) tep_session_register('sendto');
-
         $OSCOM_Db->save('address_book', $sql_data_array);
 
-        $sendto = $OSCOM_Db->lastInsertId();
+        $_SESSION['sendto'] = $OSCOM_Db->lastInsertId();
 
         if (isset($_SESSION['shipping'])) unset($_SESSION['shipping']);
 
-        tep_redirect(tep_href_link('checkout_shipping.php', '', 'SSL'));
+        OSCOM::redirect('checkout_shipping.php', '', 'SSL');
       }
 // process the selected shipping destination
     } elseif (isset($_POST['address'])) {
       $reset_shipping = false;
       if (isset($_SESSION['sendto'])) {
-        if ($sendto != $_POST['address']) {
+        if ($_SESSION['sendto'] != $_POST['address']) {
           if (isset($_SESSION['shipping'])) {
             $reset_shipping = true;
           }
         }
-      } else {
-        tep_session_register('sendto');
       }
 
-      $sendto = $_POST['address'];
+      $_SESSION['sendto'] = $_POST['address'];
 
       $Qcheck = $OSCOM_Db->prepare('select address_book_id from :table_address_book where address_book_id = :address_book_id and customers_id = :customers_id');
-      $Qcheck->bindInt(':address_book_id', $sendto);
+      $Qcheck->bindInt(':address_book_id', $_SESSION['sendto']);
       $Qcheck->bindInt(':customers_id', $_SESSION['customer_id']);
       $Qcheck->execute();
 
       if ($Qcheck->fetch() !== false) {
         if ($reset_shipping == true) unset($_SESSION['shipping']);
-        tep_redirect(tep_href_link('checkout_shipping.php', '', 'SSL'));
+        OSCOM::redirect('checkout_shipping.php', '', 'SSL');
       } else {
         unset($_SESSION['sendto']);
       }
     } else {
-      if (!isset($_SESSION['sendto'])) tep_session_register('sendto');
-      $sendto = $customer_default_address_id;
+      $_SESSION['sendto'] = $_SESSION['customer_default_address_id'];
 
-      tep_redirect(tep_href_link('checkout_shipping.php', '', 'SSL'));
+      OSCOM::redirect('checkout_shipping.php', '', 'SSL');
     }
   }
 
 // if no shipping destination address was selected, use their own address as default
   if (!isset($_SESSION['sendto'])) {
-    $sendto = $customer_default_address_id;
+    $_SESSION['sendto'] = $_SESSION['customer_default_address_id'];
   }
 
-  $breadcrumb->add(NAVBAR_TITLE_1, tep_href_link('checkout_shipping.php', '', 'SSL'));
-  $breadcrumb->add(NAVBAR_TITLE_2, tep_href_link('checkout_shipping_address.php', '', 'SSL'));
+  $breadcrumb->add(NAVBAR_TITLE_1, OSCOM::link('checkout_shipping.php', '', 'SSL'));
+  $breadcrumb->add(NAVBAR_TITLE_2, OSCOM::link('checkout_shipping_address.php', '', 'SSL'));
 
   $addresses_count = tep_count_customer_address_book_entries();
 
@@ -229,7 +225,7 @@
   }
 ?>
 
-<?php echo tep_draw_form('checkout_address', tep_href_link('checkout_shipping_address.php', '', 'SSL'), 'post', 'class="form-horizontal" role="form"', true); ?>
+<?php echo HTML::form('checkout_address', OSCOM::link('checkout_shipping_address.php', '', 'SSL'), 'post', 'class="form-horizontal" role="form"', ['tokenize' => true]); ?>
 
 <div class="contentContainer">
 
@@ -252,7 +248,7 @@
         <div class="panel-heading"><?php echo TITLE_SHIPPING_ADDRESS; ?></div>
 
         <div class="panel-body">
-          <?php echo tep_address_label($customer_id, $sendto, true, ' ', '<br />'); ?>
+          <?php echo tep_address_label($_SESSION['customer_id'], $_SESSION['sendto'], true, ' ', '<br />'); ?>
         </div>
       </div>
     </div>
@@ -290,7 +286,7 @@
       while ($Qab->fetch()) {
         $format_id = tep_get_address_format_id($Qab->valueInt('country_id'));
 
-        if ($Qab->valueInt('address_book_id') == $sendto) {
+        if ($Qab->valueInt('address_book_id') == $_SESSION['sendto']) {
           echo '      <tr id="defaultSelected" class="moduleRowSelected">' . "\n";
         } else {
           echo '      <tr class="moduleRow">' . "\n";
@@ -301,7 +297,7 @@
           <strong><?php echo HTML::outputProtected($Qab->value('firstname') . ' ' . $Qab->value('lastname')); ?></strong>
           <div class="help-block"><?php echo tep_address_format($format_id, $Qab->toArray(), true, ' ', ', '); ?></div>
         </td>
-        <td align="right"><?php echo tep_draw_radio_field('address', $Qab->valueInt('address_book_id'), ($Qab->valueInt('address_book_id') == $sendto)); ?></td>
+        <td align="right"><?php echo HTML::radioField('address', $Qab->valueInt('address_book_id'), ($Qab->valueInt('address_book_id') == $_SESSION['sendto'])); ?></td>
       </tr>
 
 <?php
@@ -336,7 +332,7 @@
 ?>
 
   <div class="contentText">
-    <div><?php echo tep_draw_hidden_field('action', 'submit') . tep_draw_button(IMAGE_BUTTON_CONTINUE, 'glyphicon glyphicon-chevron-right', null, 'primary', null, 'btn-success btn-block'); ?></div>
+    <div><?php echo HTML::hiddenField('action', 'submit') . HTML::button(IMAGE_BUTTON_CONTINUE, 'glyphicon glyphicon-chevron-right', null, 'primary', null, 'btn-success btn-block'); ?></div>
   </div>
 
 <?php
@@ -344,7 +340,7 @@
 ?>
 
   <div>
-    <?php echo tep_draw_button(IMAGE_BUTTON_BACK, 'glyphicon glyphicon-chevron-left', tep_href_link('checkout_shipping_address.php', '', 'SSL')); ?>
+    <?php echo HTML::button(IMAGE_BUTTON_BACK, 'glyphicon glyphicon-chevron-left', OSCOM::link('checkout_shipping_address.php', '', 'SSL')); ?>
   </div>
 
 <?php
